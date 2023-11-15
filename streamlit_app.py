@@ -4,6 +4,10 @@ import webreg_to_cal
 
 def main():
     st.title("Webreg to Cal")
+    st.subheader("Made by Carter Tran")
+
+    st.header("How to Use")
+    st.write("https://act.ucsd.edu/webreg2/start")
 
     uploaded_file = st.file_uploader("Choose an HTML file", type="html")
     if uploaded_file is not None:
