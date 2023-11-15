@@ -1,3 +1,2 @@
-camelot-py
-opencv-python
-ghostscript
+pandas
+selectolax
