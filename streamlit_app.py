@@ -7,7 +7,13 @@ def main():
     st.subheader("Made by Carter Tran")
 
     st.header("How to Use")
-    st.write("https://act.ucsd.edu/webreg2/start")
+    st.write("1. Visit https://act.ucsd.edu/webreg2/start and once you are logged in, select the term that you want to add to your calendar.")
+    st.write('2. Once you are at the schedule page, right click the page and click "Save As", "Save Page As...", or something similar.')
+    st.write("3. Upload the .html file that you just saved back to this website, and it will automatically generate calendar events that you can import to your Google Calendar (or another calendar app that supports .csv file imports).")
+
+    st.write("Instructions on importing to Google Calendar: https://support.google.com/calendar/answer/37118?hl=en&co=GENIE.Platform=Desktop")
+
+    st.write("Please let me know if you have any questions/suggestions!")
 
     uploaded_file = st.file_uploader("Choose an HTML file", type="html")
     if uploaded_file is not None:
