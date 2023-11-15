@@ -4,9 +4,8 @@ Transforms a webreg schedule into calendar events.
 ## Web App
 https://webreg.streamlit.app
 
----
-
-## How to Use Locally
+<details>
+<summary>How to Use Locally</summary>
 1. Clone this repository and cd into it
 ```
 $ git clone https://github.com/CarterT27/webreg_to_cal
@@ -21,17 +20,11 @@ $ source venv/bin/activate
 ```
 $ pip install -r requirements.txt
 ```
-4. Go to https://act.ucsd.edu/webreg2/start
-5. Select the term you want to create the calendar for.
-6. Right click the page and click "Save Page As..."
-7. Save the .html file into the directory of this project (webreg_to_cal)
-8. Run the following command:
+4. Run the following command:
 ```
-python webreg_to_cal.py {filename}
+python -m streamlit run streamlit_app.py
 ```
-Replace {filename} with the path to your saved file.
-9. Import the resulting .csv file into your preferred calendar app
-    - Example: https://support.google.com/calendar/answer/37118?hl=en&co=GENIE.Platform=Desktop
+</details>
 
 ## Limitations
 - Does not count for breaks and holidays in the middle of quarters.
