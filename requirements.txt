@@ -1,1 +1,1 @@
-camelot
+camelot-py
