@@ -4,6 +4,8 @@ Transforms a webreg schedule into calendar events.
 ## Web App
 https://webreg.streamlit.app
 
+---
+
 ## How to Use Locally
 1. Clone this repository and cd into it
 ```
