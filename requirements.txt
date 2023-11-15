@@ -1,3 +1,4 @@
 pandas
 selectolax
 requests
+streamlit
