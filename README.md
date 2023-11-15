@@ -1,7 +1,10 @@
 # webreg_to_cal
 Transforms a webreg schedule into calendar events.
 
-## How to Use
+## Web App
+https://webreg.streamlit.app
+
+## How to Use Locally
 1. Clone this repository and cd into it
 ```
 $ git clone https://github.com/CarterT27/webreg_to_cal
