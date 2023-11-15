@@ -56,10 +56,9 @@ class Course:
         self.end_time = times[1].replace("a", " AM").replace("p", " PM")
 
 
-def get_webreg_tree(filepath):
-    with open(filepath, "r") as f:
-        text = f.read()
-        tree = HTMLParser(text)
+def get_webreg_tree(file):
+    text = file.read()
+    tree = HTMLParser(text)
     return tree
 
 
@@ -330,7 +329,8 @@ def build_cal_df(courses, term_start_date, term_end_date):
 
 
 def main(filepath):
-    webreg_tree = get_webreg_tree(filepath)
+    with open(filepath, "r") as f:
+        webreg_tree = get_webreg_tree(f)
     courses = get_courses(webreg_tree)
     term_start_date, term_end_date = get_term_dates(webreg_tree)
     cal_df = build_cal_df(courses, term_start_date, term_end_date)
@@ -340,6 +340,6 @@ def main(filepath):
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         first_arg = sys.argv[1]
-        main(first_arg)
+        main("WI24.html")
     else:
         print("No command line argument provided")
