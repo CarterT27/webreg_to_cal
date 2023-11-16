@@ -308,6 +308,52 @@ def build_cal_df(courses, term_start_date, term_end_date):
     return cal_df.reset_index(drop=True)
 
 
+# Function to determine the week number from a date string
+def get_week_number(date_str):
+    date_obj = datetime.datetime.strptime(date_str, "%m/%d/%Y")
+    return date_obj.isocalendar()[1]
+
+
+def clean_cal_df(df):
+    # gets rid of discussions that come before lectures in the week
+
+    # Adding a column for week number
+    df["Week Number"] = df["Start Date"].apply(get_week_number)
+
+    # Assuming that lectures and discussions can be identified from the 'Subject' field
+    # For example, lecture might be denoted by 'LE' and discussion by 'DI' in the 'Subject' field
+    # This assumption needs to be adjusted based on the actual data
+
+    # Identify rows with lectures and discussions
+    df["Is Lecture"] = df["Subject"].str.contains("LE")
+    df["Is Discussion"] = df["Subject"].str.contains("DI")
+
+    # Group by week number and filter out invalid rows
+    valid_rows = []
+
+    for week, group in df.groupby("Week Number"):
+        # Check if any discussion is before a lecture in the same week
+        lectures_in_week = group[group["Is Lecture"]]
+        discussions_in_week = group[group["Is Discussion"]]
+
+        if not discussions_in_week.empty and not lectures_in_week.empty:
+            first_lecture_date = min(lectures_in_week["Start Date"])
+            invalid_discussions = discussions_in_week[
+                discussions_in_week["Start Date"] < first_lecture_date
+            ]
+            valid_rows.extend(
+                group[~group.index.isin(invalid_discussions.index)].index.tolist()
+            )
+        else:
+            # Include all rows if there are no discussions or no lectures in the week
+            valid_rows.extend(group.index.tolist())
+
+    # Create a new dataframe with valid rows only
+    return df.loc[valid_rows].drop(
+        columns=["Week Number", "Is Lecture", "Is Discussion"]
+    )
+
+
 def main(filepath):
     with open(filepath, "r") as f:
         webreg_tree = get_webreg_tree(f)

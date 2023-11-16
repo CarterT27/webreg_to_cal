@@ -51,6 +51,7 @@ def main():
                 cal_df = webreg_to_cal.build_cal_df(
                     courses, term_start_date, term_end_date
                 )
+                cal_df = webreg_to_cal.clean_cal_df(cal_df)
 
             # Convert processed data to CSV for download
             cal_csv = cal_df.to_csv(index=False).encode("utf-8")
