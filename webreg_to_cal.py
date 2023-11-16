@@ -66,6 +66,7 @@ class Course:
                 "Subject": f"{self.name} {self.meeting_type}",
                 "Start Date": date,
                 "Start Time": self.start_time,
+                "All Day Event": False,
                 "End Time": self.end_time,
                 "Description": f"{self.title}\nInstructor: {self.instructor}\nTaking as {self.grade_option} for {self.units} units.\n\n---\n\n{random_message(self.meeting_type)}",
                 "Location": f"{self.bldg} {self.room}",
@@ -74,10 +75,43 @@ class Course:
         )
 
 
-class Break:
+class AllDayEvent:
     def __init__(self, name, dates):
         self.name = name
         self.dates = dates
+
+    def as_df(self, date):
+        return pd.DataFrame(
+            {
+                "Subject": self.name,
+                "Start Date": date,
+                "All Day Event": True,
+                "Start Time": None,
+                "End Time": None,
+                "Description": None,
+                "Location": None,
+            },
+            index=[0],
+        )
+
+
+class Break(AllDayEvent):
+    def __init__(self, name, dates):
+        super().__init__(name, dates)
+
+    def as_df(self, date):
+        return pd.DataFrame(
+            {
+                "Subject": self.name,
+                "Start Date": date,
+                "All Day Event": True,
+                "Start Time": None,
+                "End Time": None,
+                "Description": None,
+                "Location": None,
+            },
+            index=[0],
+        )
 
 
 def get_webreg_tree(file):
@@ -144,15 +178,17 @@ def format_date_or_dates(date_str, year):
     return format_date(date_str, year)
 
 
-def date_range(start_date, end_date):
+def date_range(start_date, end_date = None):
     start = datetime.datetime.strptime(start_date, "%m/%d/%Y")
-    end = datetime.datetime.strptime(end_date, "%m/%d/%Y")
+    if end_date:
+        end = datetime.datetime.strptime(end_date, "%m/%d/%Y")
 
-    delta = end - start
-    return [
-        (start + datetime.timedelta(days=i)).strftime("%m/%d/%Y")
-        for i in range(delta.days + 1)
-    ]
+        delta = end - start
+        return [
+            (start + datetime.timedelta(days=i)).strftime("%m/%d/%Y")
+            for i in range(delta.days + 1)
+        ]
+    return start_date
 
 
 def get_term_dates(webreg_tree):
@@ -177,7 +213,7 @@ def get_term_dates(webreg_tree):
     quarter_start_date = None
     quarter_end_date = None
     quarter_breaks = []
-    # commencement_programs = []
+    commencement_programs = None
     current_quarter = False
     for tr in trs:
         th = tr.css_first("th")
@@ -189,28 +225,26 @@ def get_term_dates(webreg_tree):
                 quarter_start_date = format_date(tds[1].text().strip(), calendar_year)
             elif "Instruction ends" in tds[0].text():
                 quarter_end_date = format_date(tds[1].text().strip(), calendar_year)
-            elif "Quarter" in tds[0].text():
+            elif "Quarter" in tds[0].text():  # ignore table row
                 pass
-            elif "day of instruction" in tds[0].text():
+            elif "day of instruction" in tds[0].text():  # ignore table row
                 pass
-            elif "Final Exams" in tds[0].text():
+            elif "Final Exams" in tds[0].text():  # ignore?
                 pass
             elif "Commencement programs" in tds[0].text():
-                pass
+                commencement_programs = AllDayEvent("Commencement Programs", format_date_or_dates(tds[1].text().strip(), calendar_year))
             else:  # holiday
                 try:
-                    break_s = format_date_or_dates(tds[1].text().strip(), calendar_year)
-                    if len(break_s) == 2:
-                        for date in date_range(break_s[0], break_s[1]):
-                            quarter_breaks.append(date)
-                    else:
-                        quarter_breaks.append(break_s)
-                except:
+                    break_s_dates = format_date_or_dates(tds[1].text().strip(), calendar_year)
+                    break_event = Break(tds[0].text().strip(), break_s_dates)
+                    quarter_breaks.append(break_event)
+                except Exception as e:
+                    print(e)
                     pass
 
     # Fix so breaks are created as their own events and classes are not scheduled during them
     # summer_session_table = parser.css("tbody")[1] # not implemented
-    return quarter_start_date, quarter_end_date
+    return quarter_start_date, quarter_end_date, quarter_breaks, commencement_programs
 
 
 def parse_days(days_str):
@@ -257,6 +291,7 @@ def build_cal_df(courses, term_start_date, term_end_date):
             "Subject",
             "Start Date",
             "Start Time",
+            "All Day Event",
             "End Time",
             "Description",
             "Location",
@@ -308,6 +343,23 @@ def build_cal_df(courses, term_start_date, term_end_date):
     return cal_df.reset_index(drop=True)
 
 
+def add_breaks_and_commencement(df, break_events, commencement_programs):
+    # Add breaks to calendar
+    for break_event in break_events:
+        if len(break_event.dates) == 2:
+            dates = date_range(break_event.dates)
+        else:
+            dates = [break_event.dates]
+        for date in dates:
+            df = pd.concat([df, break_event.as_df(date)])
+    # Add commencement programs to calendar
+    if commencement_programs:
+        df = pd.concat([df, commencement_programs.as_df()])
+    # Remove lectures, discussions, labs on the same day as breaks
+    pass
+    return df.reset_index(drop=True)
+
+
 # Function to determine the week number from a date string
 def get_week_number(date_str):
     date_obj = datetime.datetime.strptime(date_str, "%m/%d/%Y")
@@ -354,12 +406,12 @@ def clean_cal_df(df):
     )
 
 
-def main(filepath):
+def main(filepath): # Need to update
     with open(filepath, "r") as f:
         webreg_tree = get_webreg_tree(f)
     courses = get_courses(webreg_tree)
     try:
-        term_start_date, term_end_date = get_term_dates(webreg_tree)
+        term_start_date, term_end_date,_,_ = get_term_dates(webreg_tree)
     except:
         term_start_date = input(
             "Error: Term Start Date Could not be Found. Please enter in the form %d/%m/%Y"

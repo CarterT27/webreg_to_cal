@@ -45,12 +45,13 @@ def main():
                 # Process the file
                 webreg_tree = webreg_to_cal.get_webreg_tree(uploaded_file)
                 courses = webreg_to_cal.get_courses(webreg_tree)
-                term_start_date, term_end_date = webreg_to_cal.get_term_dates(
+                term_start_date, term_end_date, break_events, commencement_programs = webreg_to_cal.get_term_dates(
                     webreg_tree
                 )
                 cal_df = webreg_to_cal.build_cal_df(
                     courses, term_start_date, term_end_date
                 )
+                cal_df = webreg_to_cal.add_breaks_and_commencement(cal_df, break_events, commencement_programs)
                 cal_df = webreg_to_cal.clean_cal_df(cal_df)
 
             # Convert processed data to CSV for download
