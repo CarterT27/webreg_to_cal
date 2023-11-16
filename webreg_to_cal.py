@@ -185,11 +185,8 @@ def get_term_dates(webreg_tree):
                     pass
 
     # Fix so breaks are created as their own events and classes are not scheduled during them
-
+    # summer_session_table = parser.css("tbody")[1] # not implemented
     return quarter_start_date, quarter_end_date
-
-
-# summer_session_table = parser.css("tbody")[1] # not implemented
 
 
 def parse_days(days_str):
@@ -220,9 +217,6 @@ def get_course_dates(term_start_date, term_end_date, days_of_week):
         current_date += datetime.timedelta(days=1)
 
     return course_dates
-
-
-dates = get_course_dates("01/01/2023", "05/31/2023", "MWF")
 
 
 def build_cal_df(courses, term_start_date, term_end_date):
@@ -335,8 +329,12 @@ def main(filepath):
     try:
         term_start_date, term_end_date = get_term_dates(webreg_tree)
     except:
-        term_start_date = input("Error: Term Start Date Could not be Found. Please enter in the form %d/%m/%Y")
-        term_end_date = input("Error: Term End Date Could not be Found. Please enter in the form %d/%m/%Y")
+        term_start_date = input(
+            "Error: Term Start Date Could not be Found. Please enter in the form %d/%m/%Y"
+        )
+        term_end_date = input(
+            "Error: Term End Date Could not be Found. Please enter in the form %d/%m/%Y"
+        )
     cal_df = build_cal_df(courses, term_start_date, term_end_date)
     cal_df.to_csv("WI24.csv")
 
