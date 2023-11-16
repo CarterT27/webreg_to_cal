@@ -57,10 +57,11 @@ def main():
             st.download_button(
                 label="Download Calendar CSV",
                 data=cal_csv,
-                file_name="processed.csv",
+                file_name="Webreg_Schedule.csv",
                 mime="text/csv",
             )
         except Exception as e:
+            raise (e)
             print(e)
             st.write(
                 "Error: Could not process file. Please ensure you are uploading the correct file type."

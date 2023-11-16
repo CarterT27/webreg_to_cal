@@ -6,11 +6,15 @@ from selectolax.parser import HTMLParser
 import datetime
 import requests
 import sys
+import re
+import json
+import random
 
 
 class Course:
     def __init__(self, tds: list):
         self.name = tds[0].text().strip()
+        self.name = re.sub(r"\s+", " ", self.name)
         self.title = tds[1].text().strip()
         self.section_code = tds[2].text().strip()
         self.meeting_type = tds[3].text().strip()
@@ -22,6 +26,7 @@ class Course:
         self.parse_time()
         self.bldg = tds[9].text().strip()
         self.room = tds[10].text().strip()
+        self.room = "" if self.room == "TBD" else self.room
 
     def __str__(self):
         if self.meeting_type == "LE":
@@ -54,6 +59,25 @@ class Course:
         times = self.time.split("-")
         self.start_time = times[0].replace("a", " AM").replace("p", " PM")
         self.end_time = times[1].replace("a", " AM").replace("p", " PM")
+
+    def as_df(self, date):
+        return pd.DataFrame(
+            {
+                "Subject": f"{self.name} {self.meeting_type}",
+                "Start Date": date,
+                "Start Time": self.start_time,
+                "End Time": self.end_time,
+                "Description": f"{self.title}\nInstructor: {self.instructor}\nTaking as {self.grade_option} for {self.units} units.\n\n---\n\n{random_message(self.meeting_type)}",
+                "Location": f"{self.bldg} {self.room}",
+            },
+            index=[0],
+        )
+
+
+class Break:
+    def __init__(self, name, dates):
+        self.name = name
+        self.dates = dates
 
 
 def get_webreg_tree(file):
@@ -203,6 +227,8 @@ def parse_days(days_str):
 
 
 def get_course_dates(term_start_date, term_end_date, days_of_week):
+    if len(days_of_week.split()) > 1:
+        return [days_of_week.split()[1]]
     weekdays = {"M": 0, "Tu": 1, "W": 2, "Th": 3, "F": 4, "Sa": 5, "Su": 6}
     days = [weekdays[day] for day in parse_days(days_of_week) if day in weekdays]
 
@@ -217,6 +243,12 @@ def get_course_dates(term_start_date, term_end_date, days_of_week):
         current_date += datetime.timedelta(days=1)
 
     return course_dates
+
+
+def random_message(course_type):
+    with open("messages.json", "r") as f:
+        messages = json.load(f)
+    return random.choice(messages[course_type])
 
 
 def build_cal_df(courses, term_start_date, term_end_date):
@@ -236,17 +268,7 @@ def build_cal_df(courses, term_start_date, term_end_date):
                 cal_df = pd.concat(
                     [
                         cal_df,
-                        pd.DataFrame(
-                            {
-                                "Subject": f"{course.name} {course.meeting_type}",
-                                "Start Date": date,
-                                "Start Time": course.start_time,
-                                "End Time": course.end_time,
-                                "Description": f"{course.title}\nInstructor: {course.instructor}\nTaking as {course.grade_option} for {course.units} units.\n\n---\n\nDon't forget to go to class!",
-                                "Location": f"{course.bldg} {course.room}",
-                            },
-                            index=[0],
-                        ),
+                        course.as_df(date),
                     ]
                 )
         elif course.meeting_type == "DI":
@@ -254,17 +276,7 @@ def build_cal_df(courses, term_start_date, term_end_date):
                 cal_df = pd.concat(
                     [
                         cal_df,
-                        pd.DataFrame(
-                            {
-                                "Subject": f"{course.name} {course.meeting_type}",
-                                "Start Date": date,
-                                "Start Time": course.start_time,
-                                "End Time": course.end_time,
-                                "Description": f"{course.title}\nInstructor: {course.instructor}\nTaking as {course.grade_option} for {course.units} units.\n\n---\n\nSpeak up!",
-                                "Location": f"{course.bldg} {course.room}",
-                            },
-                            index=[0],
-                        ),
+                        course.as_df(date),
                     ]
                 )
         elif course.meeting_type == "LA":
@@ -272,33 +284,15 @@ def build_cal_df(courses, term_start_date, term_end_date):
                 cal_df = pd.concat(
                     [
                         cal_df,
-                        pd.DataFrame(
-                            {
-                                "Subject": f"{course.name} {course.meeting_type}",
-                                "Start Date": date,
-                                "Start Time": course.start_time,
-                                "End Time": course.end_time,
-                                "Description": f"{course.title}\nInstructor: {course.instructor}\nTaking as {course.grade_option} for {course.units} units.\n\n---\n\nHave fun!",
-                                "Location": f"{course.bldg} {course.room}",
-                            },
-                            index=[0],
-                        ),
+                        course.as_df(date),
                     ]
                 )
         elif course.meeting_type == "MI":
             cal_df = pd.concat(
                 [
                     cal_df,
-                    pd.DataFrame(
-                        {
-                            "Subject": f"{course.name} {course.meeting_type}",
-                            "Start Date": date,
-                            "Start Time": course.start_time,
-                            "End Time": course.end_time,
-                            "Description": f"{course.title}\nInstructor: {course.instructor}\nTaking as {course.grade_option} for {course.units} units.\n\n---\n\nGood luck on your midterm!",
-                            "Location": f"{course.bldg} {course.room}",
-                        },
-                        index=[0],
+                    course.as_df(
+                        get_course_dates(term_start_date, term_end_date, course.days)[0]
                     ),
                 ]
             )
@@ -306,20 +300,12 @@ def build_cal_df(courses, term_start_date, term_end_date):
             cal_df = pd.concat(
                 [
                     cal_df,
-                    pd.DataFrame(
-                        {
-                            "Subject": f"{course.name} {course.meeting_type}",
-                            "Start Date": date,
-                            "Start Time": course.start_time,
-                            "End Time": course.end_time,
-                            "Description": f"{course.title}\nInstructor: {course.instructor}\nTaking as {course.grade_option} for {course.units} units.\n\n---\n\nYou're almost done!",
-                            "Location": f"{course.bldg} {course.room}",
-                        },
-                        index=[0],
+                    course.as_df(
+                        get_course_dates(term_start_date, term_end_date, course.days)[0]
                     ),
                 ]
             )
-    return cal_df.reset_index()
+    return cal_df.reset_index(drop=True)
 
 
 def main(filepath):
@@ -336,7 +322,7 @@ def main(filepath):
             "Error: Term End Date Could not be Found. Please enter in the form %d/%m/%Y"
         )
     cal_df = build_cal_df(courses, term_start_date, term_end_date)
-    cal_df.to_csv("WI24.csv")
+    cal_df.to_csv("WI24.csv", index=False)
 
 
 if __name__ == "__main__":
