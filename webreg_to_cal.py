@@ -332,7 +332,11 @@ def main(filepath):
     with open(filepath, "r") as f:
         webreg_tree = get_webreg_tree(f)
     courses = get_courses(webreg_tree)
-    term_start_date, term_end_date = get_term_dates(webreg_tree)
+    try:
+        term_start_date, term_end_date = get_term_dates(webreg_tree)
+    except:
+        term_start_date = input("Error: Term Start Date Could not be Found. Please enter in the form %d/%m/%Y")
+        term_end_date = input("Error: Term End Date Could not be Found. Please enter in the form %d/%m/%Y")
     cal_df = build_cal_df(courses, term_start_date, term_end_date)
     cal_df.to_csv("WI24.csv")
 
