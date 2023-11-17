@@ -3,22 +3,21 @@ import webreg_to_cal
 
 
 def main():
-    # Initialize the session state
     if "show_instructions" not in st.session_state:
         st.session_state["show_instructions"] = False
 
     st.title("Webreg to Cal")
     "Export your webreg schedule to your favorite calendar app in seconds!"
 
-    st.warning("Currently the Safari web browser isn't supported. Please use Google Chrome or Firefox to save your webreg schedule as an .html file.")
+    st.warning(
+        "Currently the Safari web browser isn't supported. Please use Google Chrome or Firefox to save your webreg schedule as an .html file."
+    )
 
-    # When the button is clicked, toggle the state
     if st.button("How to Use"):
         st.session_state["show_instructions"] = not st.session_state[
             "show_instructions"
         ]
 
-    # Show or hide the instructions based on the state
     if st.session_state["show_instructions"]:
         st.write(
             "1. Visit https://act.ucsd.edu/webreg2/start and once you are logged in, select the term that you want to add to your calendar."
@@ -31,29 +30,26 @@ def main():
             "3. Upload the .html file that you just saved back to this website, and it will automatically generate calendar events that you can import to your [Google Calendar](https://support.google.com/calendar/answer/37118?hl=en&co=GENIE.Platform=Desktop) (or another calendar app that supports .csv file imports)."
         )
 
+    included_statuses = st.multiselect(
+        "Choose Course Statuses to Transfer:",
+        [
+            "Planned",
+            "Enrolled",
+            "Waitlisted",
+        ],
+    )
+
     uploaded_file = st.file_uploader(
         "Upload your webreg schedule in .html format", type="html"
     )
     if uploaded_file is not None:
         try:
-            # Show loading message
             with st.spinner("Processing..."):
-                # Process the file
-                webreg_tree = webreg_to_cal.get_webreg_tree(uploaded_file)
-                courses = webreg_to_cal.get_courses(webreg_tree)
-                term_start_date, term_end_date, break_events, commencement_programs = webreg_to_cal.get_term_dates(
-                    webreg_tree
-                )
-                cal_df = webreg_to_cal.build_cal_df(
-                    courses, term_start_date, term_end_date
-                )
-                cal_df = webreg_to_cal.add_breaks_and_commencement(cal_df, break_events, commencement_programs)
-                cal_df = webreg_to_cal.clean_cal_df(cal_df)
+                cal_csv = webreg_to_cal.main(uploaded_file, included_statuses=included_statuses)
 
-            # Convert processed data to CSV for download
-            cal_csv = cal_df.to_csv(index=False).encode("utf-8")
-
-            st.success("Successfully converted schedule to .csv. Click below to download file.")
+            st.success(
+                "Successfully converted schedule to .csv. Click below to download file."
+            )
 
             st.download_button(
                 label="Download Webreg CSV",
@@ -65,7 +61,7 @@ def main():
             # raise (e)
             print(e)
             st.error(
-                "Error: Could not process file. Please ensure you are uploading the correct file type. " \
+                "Error: Could not process file. Please ensure you are uploading the correct file type. "
                 "For more information, please consult the How to Use section."
             )
 

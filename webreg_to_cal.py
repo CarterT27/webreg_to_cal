@@ -27,6 +27,7 @@ class Course:
         self.bldg = tds[9].text().strip()
         self.room = tds[10].text().strip()
         self.room = "" if self.room == "TBD" else self.room
+        self.status = tds[11].text().strip()
 
     def __str__(self):
         if self.meeting_type == "LE":
@@ -136,6 +137,8 @@ def get_courses(webreg_tree):
             course.instructor = courses[-1].instructor
             course.grade_option = courses[-1].grade_option
             course.units = courses[-1].units
+        if course.status == "":
+            course.status = courses[-1].status
         courses.append(course)
     return courses
 
@@ -148,22 +151,17 @@ def get_academic_year(quarter):
 
 def format_date(date_str, year):
     date_str = ",".join(date_str.split(",")[:2])
-    # The date string is expected to be in the format "Day, Month Date"
-    # The year is not included in the date string, so it's passed separately
     formatted_date = datetime.datetime.strptime(f"{date_str} {year}", "%A, %B %d %Y")
     return formatted_date.strftime("%m/%d/%Y")
 
 
 def format_dates(date_str, year):
     date_str = ",".join(date_str.split(",")[:2])
-    # Splitting the string into two parts
     start_end_str, month_dates_str = date_str.split(", ")
     month, dates_str = month_dates_str.split(" ")
 
-    # Splitting the dates
     start_date_str, end_date_str = dates_str.split("-")
 
-    # Adding year and formatting
     start_formatted_date = datetime.datetime.strptime(
         f"{month} {start_date_str} {year}", "%B %d %Y"
     ).strftime("%m/%d/%Y")
@@ -181,7 +179,7 @@ def format_date_or_dates(date_str, year):
     return format_date(date_str, year)
 
 
-def date_range(start_date, end_date = None):
+def date_range(start_date, end_date=None):
     start = datetime.datetime.strptime(start_date, "%m/%d/%Y")
     if end_date:
         end = datetime.datetime.strptime(end_date, "%m/%d/%Y")
@@ -235,17 +233,21 @@ def get_term_dates(webreg_tree):
             elif "Final Exams" in tds[0].text():  # ignore?
                 pass
             elif "Commencement programs" in tds[0].text():
-                commencement_programs = AllDayEvent("Commencement Programs", format_date_or_dates(tds[1].text().strip(), calendar_year))
+                commencement_programs = AllDayEvent(
+                    "Commencement Programs",
+                    format_date_or_dates(tds[1].text().strip(), calendar_year),
+                )
             else:  # holiday
                 try:
-                    break_s_dates = format_date_or_dates(tds[1].text().strip(), calendar_year)
+                    break_s_dates = format_date_or_dates(
+                        tds[1].text().strip(), calendar_year
+                    )
                     break_event = Break(tds[0].text().strip(), break_s_dates)
                     quarter_breaks.append(break_event)
                 except Exception as e:
                     print(e)
                     pass
 
-    # Fix so breaks are created as their own events and classes are not scheduled during them
     # summer_session_table = parser.css("tbody")[1] # not implemented
     return quarter_start_date, quarter_end_date, quarter_breaks, commencement_programs
 
@@ -288,7 +290,7 @@ def random_message(course_type):
     return random.choice(messages[course_type])
 
 
-def build_cal_df(courses, term_start_date, term_end_date):
+def build_cal_df(courses, term_start_date, term_end_date, included_statuses):
     cal_df = pd.DataFrame(
         columns=[
             "Subject",
@@ -301,6 +303,8 @@ def build_cal_df(courses, term_start_date, term_end_date):
         ]
     )
     for course in courses:
+        if course.status not in included_statuses:
+            continue
         if course.meeting_type == "LE":
             for date in get_course_dates(term_start_date, term_end_date, course.days):
                 cal_df = pd.concat(
@@ -364,7 +368,6 @@ def add_breaks_and_commencement(df, break_events, commencement_programs):
     return df.reset_index(drop=True)
 
 
-# Function to determine the week number from a date string
 def get_week_number(date_str):
     date_obj = datetime.datetime.strptime(date_str, "%m/%d/%Y")
     return date_obj.isocalendar()[1]
@@ -373,22 +376,14 @@ def get_week_number(date_str):
 def clean_cal_df(df):
     # gets rid of discussions that come before lectures in the week
 
-    # Adding a column for week number
     df["Week Number"] = df["Start Date"].apply(get_week_number)
 
-    # Assuming that lectures and discussions can be identified from the 'Subject' field
-    # For example, lecture might be denoted by 'LE' and discussion by 'DI' in the 'Subject' field
-    # This assumption needs to be adjusted based on the actual data
-
-    # Identify rows with lectures and discussions
     df["Is Lecture"] = df["Subject"].str.contains("LE")
     df["Is Discussion"] = df["Subject"].str.contains("DI")
 
-    # Group by week number and filter out invalid rows
     valid_rows = []
 
     for week, group in df.groupby("Week Number"):
-        # Check if any discussion is before a lecture in the same week
         lectures_in_week = group[group["Is Lecture"]]
         discussions_in_week = group[group["Is Discussion"]]
 
@@ -401,35 +396,38 @@ def clean_cal_df(df):
                 group[~group.index.isin(invalid_discussions.index)].index.tolist()
             )
         else:
-            # Include all rows if there are no discussions or no lectures in the week
             valid_rows.extend(group.index.tolist())
 
-    # Create a new dataframe with valid rows only
     return df.loc[valid_rows].drop(
         columns=["Week Number", "Is Lecture", "Is Discussion"]
     )
 
 
-def main(filepath): # Need to update
-    with open(filepath, "r") as f:
-        webreg_tree = get_webreg_tree(f)
+def main(file, *args, **kwargs):
+    included_statuses = kwargs.get("included_statuses", None)
+    webreg_tree = get_webreg_tree(file)
     courses = get_courses(webreg_tree)
-    try:
-        term_start_date, term_end_date,_,_ = get_term_dates(webreg_tree)
-    except:
-        term_start_date = input(
-            "Error: Term Start Date Could not be Found. Please enter in the form %d/%m/%Y"
-        )
-        term_end_date = input(
-            "Error: Term End Date Could not be Found. Please enter in the form %d/%m/%Y"
-        )
-    cal_df = build_cal_df(courses, term_start_date, term_end_date)
-    cal_df.to_csv("WI24.csv", index=False)
+    (
+        term_start_date,
+        term_end_date,
+        break_events,
+        commencement_programs,
+    ) = get_term_dates(webreg_tree)
+    cal_df = build_cal_df(
+        courses, term_start_date, term_end_date, included_statuses
+    )
+    cal_df = add_breaks_and_commencement(
+        cal_df, break_events, commencement_programs
+    )
+    cal_df = clean_cal_df(cal_df)
+
+    return cal_df.to_csv(index=False).encode("utf-8")
 
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         first_arg = sys.argv[1]
-        main("WI24.html")
+        with open(first_arg, "r") as file:
+            main(file)
     else:
         print("No command line argument provided")
