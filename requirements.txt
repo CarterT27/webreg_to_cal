@@ -2,4 +2,3 @@ pandas
 selectolax
 requests
 streamlit
-tabula-py
