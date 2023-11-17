@@ -8,7 +8,7 @@ def main():
         st.session_state["show_instructions"] = False
 
     st.title("Webreg to Cal")
-    "Export your webreg schedule to your favorite calendar app in less than a minute!"
+    "Export your webreg schedule to your favorite calendar app in seconds!"
 
     st.warning("Currently the Safari web browser isn't supported. Please use Google Chrome or Firefox to save your webreg schedule as an .html file.")
 
@@ -28,14 +28,8 @@ def main():
             "The default filename should be webregMain.html",
         )
         st.write(
-            "3. Upload the .html file that you just saved back to this website, and it will automatically generate calendar events that you can import to your Google Calendar (or another calendar app that supports .csv file imports)."
+            "3. Upload the .html file that you just saved back to this website, and it will automatically generate calendar events that you can import to your [Google Calendar](https://support.google.com/calendar/answer/37118?hl=en&co=GENIE.Platform=Desktop) (or another calendar app that supports .csv file imports)."
         )
-
-        st.write(
-            "Instructions on importing to Google Calendar: https://support.google.com/calendar/answer/37118?hl=en&co=GENIE.Platform=Desktop"
-        )
-
-        st.write("Please let me know if you have any questions/suggestions!")
 
     uploaded_file = st.file_uploader(
         "Upload your webreg schedule in .html format", type="html"
@@ -75,6 +69,7 @@ def main():
                 "For more information, please consult the How to Use section."
             )
 
+    st.write("Questions/Suggestions: https://github.com/CarterT27/webreg_to_cal/issues")
     "Made by Carter Tran"
 
 
