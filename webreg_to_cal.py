@@ -57,8 +57,11 @@ class Course:
 
     def parse_time(self):
         times = self.time.split("-")
-        self.start_time = times[0].replace("a", " AM").replace("p", " PM")
-        self.end_time = times[1].replace("a", " AM").replace("p", " PM")
+        try:
+            self.start_time = times[0].replace("a", " AM").replace("p", " PM")
+            self.end_time = times[1].replace("a", " AM").replace("p", " PM")
+        except:
+            pass
 
     def as_df(self, date):
         return pd.DataFrame(
@@ -84,7 +87,7 @@ class AllDayEvent:
         return pd.DataFrame(
             {
                 "Subject": self.name,
-                "Start Date": date,
+                "Start Date": date or self.dates,
                 "All Day Event": True,
                 "Start Time": None,
                 "End Time": None,
@@ -347,16 +350,17 @@ def add_breaks_and_commencement(df, break_events, commencement_programs):
     # Add breaks to calendar
     for break_event in break_events:
         if len(break_event.dates) == 2:
-            dates = date_range(break_event.dates)
+            dates = date_range(break_event.dates[0], break_event.dates[1])
         else:
             dates = [break_event.dates]
         for date in dates:
+            # Remove lectures, discussions, labs on the same day as breaks
+            df = df[df["Start Date"] != date]
+            # Add breaks to cal df
             df = pd.concat([df, break_event.as_df(date)])
     # Add commencement programs to calendar
     if commencement_programs:
         df = pd.concat([df, commencement_programs.as_df()])
-    # Remove lectures, discussions, labs on the same day as breaks
-    pass
     return df.reset_index(drop=True)
 
 
