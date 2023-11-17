@@ -10,6 +10,8 @@ def main():
     st.title("Webreg to Cal")
     "Export your webreg schedule to your favorite calendar app in less than a minute!"
 
+    st.warning("Currently the Safari web browser isn't supported. Please use Google Chrome or Firefox to save your webreg schedule as an .html file.")
+
     # When the button is clicked, toggle the state
     if st.button("How to Use"):
         st.session_state["show_instructions"] = not st.session_state[
@@ -56,19 +58,22 @@ def main():
 
             # Convert processed data to CSV for download
             cal_csv = cal_df.to_csv(index=False).encode("utf-8")
+
+            st.success("Successfully converted schedule to .csv. Click below to download file.")
+
             st.download_button(
-                label="Download Calendar CSV",
+                label="Download Webreg CSV",
                 data=cal_csv,
                 file_name="Webreg_Schedule.csv",
                 mime="text/csv",
             )
         except Exception as e:
-            raise (e)
+            # raise (e)
             print(e)
-            st.write(
-                "Error: Could not process file. Please ensure you are uploading the correct file type."
+            st.error(
+                "Error: Could not process file. Please ensure you are uploading the correct file type. " \
+                "For more information, please consult the How to Use section."
             )
-            st.write("For more information, please consult the How to Use section.")
 
     "Made by Carter Tran"
 
