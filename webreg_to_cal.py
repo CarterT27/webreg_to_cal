@@ -9,25 +9,29 @@ import sys
 import re
 import json
 import random
+import tabula
+import numpy as np
+import random
+import os
 
 
 class Course:
-    def __init__(self, tds: list):
-        self.name = tds[0].text().strip()
+    def __init__(self, ser):
+        self.name = ser["Subject"].strip()
         self.name = re.sub(r"\s+", " ", self.name)
-        self.title = tds[1].text().strip()
-        self.section_code = tds[2].text().strip()
-        self.meeting_type = tds[3].text().strip()
-        self.instructor = tds[4].text().strip()
-        self.grade_option = tds[5].text().strip()
-        self.units = tds[6].text().strip()
-        self.days = tds[7].text().strip()
-        self.time = tds[8].text().strip()
+        self.title = ser["Title"].strip()
+        self.section_code = "N/A" if ser["Section"] is np.nan else ser["Section"].strip()
+        self.meeting_type = ser["Type"].strip()
+        self.instructor = ser["Instructor"].strip()
+        self.grade_option = ser["Grade"].strip()
+        self.units = ser["Units"].strip()
+        self.days = ser["Days"].strip()
+        self.time = ser["Time"].strip()
         self.parse_time()
-        self.bldg = tds[9].text().strip()
-        self.room = tds[10].text().strip()
+        self.bldg = ser["BLDG"].strip()
+        self.room = ser["Room"].strip()
         self.room = "" if self.room == "TBD" else self.room
-        self.status = tds[11].text().strip()
+        self.status = ser["Status"].strip()
 
     def __str__(self):
         if self.meeting_type == "LE":
@@ -118,29 +122,52 @@ class Break(AllDayEvent):
         )
 
 
-def get_webreg_tree(file):
-    text = file.read()
-    tree = HTMLParser(text)
-    return tree
+def get_courses_from_pdf(file):
+    def fix_first_letter(string):
+        try:
+            index = alltext.index(string) - 1
+            return alltext[index] + string
+        except Exception:
+            return string
 
+    filename = f"temp_{random.randint(0, 100)}.pdf"
+    with open(filename, "wb") as f:
+        f.write(file.getvalue())
+    df = tabula.read_pdf(filename, pages=1)[0]
 
-def get_courses(webreg_tree):
-    table = webreg_tree.css_first(".ui-jqgrid-view")
+    alltext = df.columns[0]
+    df = df.iloc[:-2,:-2]
+    headers = df.iloc[0].values
+    df.columns = headers
+    df.drop(index=0, axis=0, inplace=True)
+    df = df.assign(Title = df["Title"].apply(fix_first_letter), Instructor = df["Instructor"].apply(fix_first_letter))
+    df = df.rename(columns={"Subject\rCourse": "Subject", "Section\rCode": "Section", "Grade\rOption": "Grade", "Status /\r(Position)": "Status"})
+    df.reset_index(drop=True, inplace=True)
+
+    for i, row in df.iterrows():
+        if row["Subject"] is np.nan:
+            df.iloc[i]["Subject"] = df.iloc[i-1]["Subject"]
+            df.iloc[i]["Title"] = df.iloc[i-1]["Title"]
+            df.iloc[i]["Instructor"] = df.iloc[i-1]["Instructor"]
+            df.iloc[i]["Grade"] = df.iloc[i-1]["Grade"]
+            df.iloc[i]["Units"] = df.iloc[i-1]["Units"]
+        if row["Status"] is np.nan:
+            df.iloc[i]["Status"] = df.iloc[i-1]["Status"]
+
+    # Get courses
     courses = []
-    rows = table.css(".ui-row-ltr")
-    for i, row in enumerate(rows):
-        tds = row.css("td")
-        course = Course(tds)
-        if course.name == "":
-            course.name = courses[-1].name
-            course.title = courses[-1].title
-            course.instructor = courses[-1].instructor
-            course.grade_option = courses[-1].grade_option
-            course.units = courses[-1].units
-        if course.status == "":
-            course.status = courses[-1].status
-        courses.append(course)
-    return courses
+    for i, row in df.iterrows():
+        if row["Type"] is np.nan:
+            continue
+        courses.append(Course(row))
+
+    os.remove(filename)
+
+    return courses, alltext
+
+
+def get_courses_from_file(file):
+    return get_courses_from_pdf(file)
 
 
 def get_academic_year(quarter):
@@ -157,7 +184,7 @@ def format_date(date_str, year):
 
 def format_dates(date_str, year):
     date_str = ",".join(date_str.split(",")[:2])
-    start_end_str, month_dates_str = date_str.split(", ")
+    _, month_dates_str = date_str.split(", ")
     month, dates_str = month_dates_str.split(" ")
 
     start_date_str, end_date_str = dates_str.split("-")
@@ -192,13 +219,10 @@ def date_range(start_date, end_date=None):
     return start_date
 
 
-def get_term_dates(webreg_tree):
-    quarters = webreg_tree.css("#mainpage-select-term > option")
-    quarter = None
-    for quarter in quarters:
-        if 'selected="selected"' in quarter.html:
-            break
-    quarter_text = quarter.text().replace(" Quarter", "")
+def get_term_dates(alltext):
+    match = re.search(r'\b\w+\b Quarter \b\d{4}\b', alltext)
+    quarter = match.group(0) if match else "Fall 2023"
+    quarter_text = quarter.replace(" Quarter", "")
 
     academic_year = get_academic_year(quarter_text)
     calendar_year = int(quarter_text.split()[1])
@@ -383,7 +407,7 @@ def clean_cal_df(df):
 
     valid_rows = []
 
-    for week, group in df.groupby("Week Number"):
+    for _, group in df.groupby("Week Number"):
         lectures_in_week = group[group["Is Lecture"]]
         discussions_in_week = group[group["Is Discussion"]]
 
@@ -405,14 +429,13 @@ def clean_cal_df(df):
 
 def main(file, *args, **kwargs):
     included_statuses = kwargs.get("included_statuses", None)
-    webreg_tree = get_webreg_tree(file)
-    courses = get_courses(webreg_tree)
+    courses, alltext = get_courses_from_file(file)
     (
         term_start_date,
         term_end_date,
         break_events,
         commencement_programs,
-    ) = get_term_dates(webreg_tree)
+    ) = get_term_dates(alltext)
     cal_df = build_cal_df(
         courses, term_start_date, term_end_date, included_statuses
     )
