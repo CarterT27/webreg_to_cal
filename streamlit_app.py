@@ -10,7 +10,7 @@ def main():
     "Export your webreg schedule to your favorite calendar app in seconds!"
 
     st.warning(
-        "Currently the Safari web browser isn't supported. Please use Google Chrome or Firefox to save your webreg schedule as an .html file."
+        "Currently the Safari and Microsoft Edge web browsers aren't supported. Please use Google Chrome or Firefox to save your webreg schedule as an .html file."
     )
 
     if st.button("How to Use"):
@@ -23,7 +23,7 @@ def main():
             "1. Visit https://act.ucsd.edu/webreg2/start and once you are logged in, select the term that you want to add to your calendar."
         )
         st.write(
-            '2. Once you are at the schedule page, right click the page and click "Save As", "Save Page As...", or something similar.',
+            '2. Once you are at the schedule page, ensure that you are on List View, not Calendar or Finals, and right click the page and click "Save As", "Save Page As...", or something similar.',
             "The default filename should be webregMain.html",
         )
         st.write(
